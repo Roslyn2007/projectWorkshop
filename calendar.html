@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Календарь — ФидбэК</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/calendar.css">
+</head>
+<body class="bg-white font-sans antialiased flex flex-col min-h-screen">
+
+  <!-- Шапка -->
+  <header class="bg-indigo-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+    <a href="index.html" class="flex items-center gap-2">
+      <img src="icons/icon-mini.svg" alt="Фидбэк" class="h-8 w-auto">
+    </a>
+    <nav class="flex items-center gap-4" aria-label="Главная навигация">
+      <a href="group.html" class="nav-link text-sm text-gray-900 font-bold transition p-2 rounded-full hover:bg-indigo-300">Управление группами</a>
+      <a href="calendar.html" class="nav-link active text-sm text-gray-900 font-bold transition p-2 rounded-full hover:bg-indigo-300">Календарь</a>
+      <button class="p-2 hover:bg-indigo-300 rounded-full transition cursor-pointer" aria-label="Поиск">
+        <img src="icons/search.svg" alt="" class="w-5 h-5" onerror="this.parentElement.innerText='⌕'">
+      </button>
+      <button class="p-2 hover:bg-indigo-300 rounded-full transition relative cursor-pointer" aria-label="Уведомления">
+        <img src="icons/notification.svg" alt="" class="w-5 h-5" onerror="this.parentElement.innerText='🔔'">
+      </button>
+      <button class="p-2 hover:bg-indigo-300 rounded-full transition cursor-pointer" id="profile-btn" aria-label="Профиль" aria-expanded="false">
+        <img src="icons/profile.svg" alt="" class="w-5 h-5" onerror="this.parentElement.innerText='👤'">
+      </button>
+      <div class="flex items-center gap-1 cursor-pointer" id="profile-name" aria-label="Открыть меню профиля">
+        <span class="text-sm text-gray-900 font-bold" id="headerUserName">Загрузка...</span>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Выпадающее меню профиля -->
+  <div id="profileDropdown" class="hidden absolute right-6 top-16 mt-1 bg-white border border-gray-200 rounded shadow-lg z-50 w-35">
+    <div class="px-4 py-2 text-sm text-gray-600 cursor-pointer hover:bg-gray-50" onclick="window.location.href='settings.html'">Настройки</div>
+    <div class="px-4 py-2 text-sm text-gray-600 cursor-pointer hover:bg-gray-50 border-t border-gray-100" id="logoutBtn">Выход</div>
+  </div>
+
+  <main class="flex-1 max-w-6xl w-full mx-auto px-6 py-8">
+
+    <!-- Секция: Календарь -->
+    <div id="sectionCalendar" class="section-content active">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-semibold text-gray-800">Календарь</h1>
+        <button id="addEventBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 text-sm font-medium transition flex items-center gap-2 rounded">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Добавить мероприятие
+        </button>
+      </div>
+
+      <!-- Навигация по месяцу -->
+      <div class="flex items-center gap-2 mb-4">
+        <button id="prevYearBtn" class="px-2 py-1 border border-gray-300 text-sm hover:bg-gray-100 rounded" title="Предыдущий год">«</button>
+        <button id="prevMonthBtn" class="px-2 py-1 border border-gray-300 text-sm hover:bg-gray-100 rounded" title="Предыдущий месяц">‹</button>
+        <span id="currentMonthYear" class="text-sm font-medium px-3">Месяц год</span>
+        <button id="nextMonthBtn" class="px-2 py-1 border border-gray-300 text-sm hover:bg-gray-100 rounded" title="Следующий месяц">›</button>
+        <button id="nextYearBtn" class="px-2 py-1 border border-gray-300 text-sm hover:bg-gray-100 rounded" title="Следующий год">»</button>
+        <div class="ml-auto text-sm text-gray-600" id="monthYearDisplay">Месяц год</div>
+      </div>
+
+      <!-- Сетка календаря -->
+      <div class="border border-gray-300">
+        <!-- Заголовки дней недели -->
+        <div class="grid grid-cols-7 bg-purple-600 text-white text-center text-sm font-medium">
+          <div class="py-2">пн</div><div class="py-2">вт</div><div class="py-2">ср</div>
+          <div class="py-2">чт</div><div class="py-2">пт</div><div class="py-2">сб</div><div class="py-2">вс</div>
+        </div>
+        <!-- Ячейки -->
+        <div id="calendarGrid" class="grid grid-cols-7"></div>
+      </div>
+    </div>
+
+    <!-- Секция: Создать мероприятие -->
+    <div id="sectionCreateEvent" class="section-content hidden">
+      <h1 class="text-2xl font-semibold text-gray-800 mb-8">Создать мероприятие</h1>
+      <div class="max-w-2xl space-y-5">
+        <div class="flex items-start gap-4">
+          <label class="text-sm text-gray-700 w-24 pt-2">Тема:</label>
+          <input type="text" id="eventTopic" class="flex-1 px-3 py-2 border border-gray-300 text-sm focus:border-orange-400 focus:outline-none rounded">
+        </div>
+        <div class="flex items-start gap-4">
+          <label class="text-sm text-gray-700 w-24 pt-2">Место:</label>
+          <input type="text" id="eventPlace" class="flex-1 px-3 py-2 border border-gray-300 text-sm focus:border-orange-400 focus:outline-none rounded">
+        </div>
+        <div class="flex items-start gap-4">
+          <label class="text-sm text-gray-700 w-24 pt-2">Дата и время:</label>
+          <div class="flex gap-2 flex-1">
+            <input type="text" id="eventDate" class="w-32 px-3 py-2 border border-gray-300 text-sm text-center rounded" placeholder="00/00/0000">
+            <input type="text" id="eventTimeStart" class="w-24 px-3 py-2 border border-gray-300 text-sm text-center rounded" placeholder="00:00">
+            <input type="text" id="eventTimeEnd" class="w-24 px-3 py-2 border border-gray-300 text-sm text-center rounded" placeholder="00:00">
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <label class="text-sm text-gray-700 w-24 pt-2">Участники:</label>
+          <div class="flex-1 relative">
+            <button id="participantsDropdownBtn" class="w-full max-w-md bg-orange-500 text-white px-4 py-2 text-sm font-medium flex items-center justify-between rounded hover:bg-orange-600 transition">
+              <span>Выбрать участников</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div id="participantsDropdown" class="hidden absolute top-full left-0 mt-1 w-full max-w-md bg-white border border-orange-500 shadow-lg z-40 max-h-48 overflow-y-auto">
+            </div>
+            <div id="selectedParticipants" class="mt-2 flex flex-wrap gap-2"></div>
+          </div>
+        </div>
+        <div class="flex gap-4 mt-8 pl-28">
+          <button id="saveEventBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 text-sm font-medium transition rounded">Сохранить</button>
+          <button id="cancelEventBtn" class="border border-gray-400 text-gray-700 px-6 py-2 text-sm hover:bg-gray-100 transition rounded">Отмена</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-indigo-200 px-2 py-2 mt-auto">
+    <div class="max-w-10xl mx-auto flex items-center">
+      <button class="p-1 hover:bg-indigo-300 rounded-full transition" onclick="window.location.href='index.html'">
+        <img src="icons/icon.svg" alt="Иконка сервиса" class="w-10/14 h-10/14">
+      </button>
+    </div>
+  </footer>
+
+  <script type="module" src="js/calendar.js"></script>
+</body>
+</html>

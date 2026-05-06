@@ -1,94 +1,52 @@
-/* === СКРОЛЛБАР для блока "Мои группы" === */
-.groups-scrollbar {
-  scrollbar-width: auto;
-  scrollbar-color: #581c87 #f5f0ff;
-}
+/* === Скроллбар "Мои группы" === */
 .groups-scrollbar::-webkit-scrollbar {
-  width: 20px;
+  width: 16px;
 }
+
 .groups-scrollbar::-webkit-scrollbar-track {
-  background: #f5f0ff;;
-}
-.groups-scrollbar::-webkit-scrollbar-thumb {
-  background: #7935F0;
-  border-radius: 0;
-}
-.groups-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #4a1570;
-}
-.groups-scrollbar::-webkit-scrollbar-button {
-  background: #c4b5fd;
-  height: 12px;
-  display: block;
-}
-
-/* === СКРОЛЛБАР для выпадающего списка "Удалить участника" (оранжевый) === */
-.remove-dropdown-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #f97316 #fff1e6;
-}
-.remove-dropdown-scrollbar::-webkit-scrollbar {
-  width: 10px;
-}
-.remove-dropdown-scrollbar::-webkit-scrollbar-track {
-  background: #fff1e6;
-  border-radius: 0px;
-}
-.remove-dropdown-scrollbar::-webkit-scrollbar-thumb {
-  background: #f97316;
-  border-radius: 0px;
-}
-.remove-dropdown-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #ea580c;
-}
-
-/* === СКРОЛЛБАР для списка участников (фиолетовый) === */
-.members-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #a855f7 #f1f1f1;
-}
-.members-scrollbar::-webkit-scrollbar {
-  width: 12px;
-}
-.members-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-.members-scrollbar::-webkit-scrollbar-thumb {
-  background: #a855f7;
-  border-radius: 0px;
-}
-
-/* Общие стили */
-.section-content { display: none; }
-.section-content.active { display: block; }
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-
-.group-item { transition: all 0.2s; }
-.group-item.active { background-color: #9333ea; color: white; border-color: #9333ea; }
-.group-item.active .group-name { color: white; }
-.group-item.active .group-role { color: #e9d5ff; }
-.group-item.active .group-divider { background: rgba(255,255,255,0.5); }
-
-.toast {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #1f2937;
-  color: white;
-  padding: 12px 24px;
+  background: #f5f0ff;
   border-radius: 8px;
-  z-index: 1000;
-  animation: slideIn 0.3s ease;
-}
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
 }
 
-.dropdown-menu {
-  display: none;
+/* Округлый ползунок */
+.groups-scrollbar::-webkit-scrollbar-thumb {
+  background: #8d51f3;
+  border-radius: 8px;
+  border: 3px solid #f5f0ff;
 }
-.dropdown-menu.show {
+
+.groups-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6d28d9;
+}
+
+/* Стрелки — фон + картинка поверх */
+.groups-scrollbar::-webkit-scrollbar-button {
   display: block;
+  height: 16px;
+  width: 16px;
+  background-color: #c4b5fd; /* фиолетовый фон как у вас было */
+  background-size: 10px 10px;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 8px; /* округлые кнопки */
+}
+
+.groups-scrollbar::-webkit-scrollbar-button:hover {
+  background-color: #a78bfa;
+}
+
+/* Стрелка вверх */
+.groups-scrollbar::-webkit-scrollbar-button:start:decrement {
+  background-image: url("../icons/up.svg");
+}
+
+/* Стрелка вниз */
+.groups-scrollbar::-webkit-scrollbar-button:end:increment {
+  background-image: url("../icons/down.svg");
+}
+
+/* Убираем второй круг (дополнительные псевдо-кнопки) */
+.groups-scrollbar::-webkit-scrollbar-button:vertical:start:increment,
+.groups-scrollbar::-webkit-scrollbar-button:vertical:end:decrement {
+  display: none;
 }

@@ -275,38 +275,12 @@ if (backBtn) {
   };
 }
 
-// Сохранение профиля
-const saveProfileBtn = document.getElementById('saveProfileBtn');
-if (saveProfileBtn) {
-  saveProfileBtn.onclick = async () => {
-    const name = document.getElementById('profileFirstName').value.trim();
-    const surname = document.getElementById('profileLastName').value.trim();
-    const email = document.getElementById('profileEmail').value.trim();
-    const patronymic = document.getElementById('profilePatronymic')?.value.trim();
-    try {
-      await usersAPI.updateProfile({ name, surname, patronymic, email });
-      showToast('Профиль обновлен');
-      await loadCurrentUser();
-    } catch (error) {
-      showToast('Ошибка сохранения: ' + error.message, true);
-    }
-  };
-}
-
-// Смена пароля
-const changePasswordBtn = document.getElementById('changePasswordBtn');
-if (changePasswordBtn) {
-  changePasswordBtn.onclick = () => {
-    showToast('Функция смены пароля временно недоступна', true);
-  };
-}
-
 // Выпадающее меню профиля
 const profileIconBtn = document.getElementById('profile-btn');
 const profileDropdownMenu = document.getElementById('profileDropdown');
 
 function toggleProfileMenu() {
-  profileDropdownMenu.classList.toggle('show');
+  profileDropdownMenu.classList.toggle('hidden');
 }
 
 if (profileIconBtn) {
@@ -319,32 +293,6 @@ if (profileIconBtn) {
 // Закрытие при клике вне меню
 document.addEventListener('click', () => {
   profileDropdownMenu?.classList.remove('show');
-});
-
-// Переключение секций
-document.querySelectorAll('[data-section]').forEach(el => {
-  el.onclick = () => {
-    const sec = el.dataset.section;
-    document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
-    document.getElementById(`section${sec.charAt(0).toUpperCase() + sec.slice(1)}`).classList.add('active');
-    if (sec === 'groups') loadGroups();
-    profileDropdownMenu?.classList.remove('show');
-  };
-});
-
-// Табы настроек
-document.querySelectorAll('.settings-tab').forEach(tab => {
-  tab.onclick = () => {
-    document.querySelectorAll('.settings-tab').forEach(t => {
-      t.classList.remove('text-orange-500', 'border-orange-500');
-      t.classList.add('text-gray-500', 'border-transparent');
-    });
-    tab.classList.add('text-orange-500', 'border-orange-500');
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    const tabId = 'tab' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1);
-    const panel = document.getElementById(tabId);
-    if (panel) panel.classList.add('active');
-  };
 });
 
 // Выход
