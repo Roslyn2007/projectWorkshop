@@ -1,4 +1,4 @@
-import { authAPI, usersAPI } from './api.js';
+import { authAPI } from './api.js';
 
 let lastFocusedElement = null;
 
@@ -121,17 +121,10 @@ export function initAuthModal() {
     if (tabLogin) tabLogin.addEventListener('click', () => switchAuthTab('login'));
     if (tabRegister) tabRegister.addEventListener('click', () => switchAuthTab('register'));
 
-    // === ИСПРАВЛЕНИЕ: привязка к кнопкам с классами login-btn-student и login-btn-expert ===
-    const studentBtn = document.querySelector('.login-btn-student');
-    const expertBtn = document.querySelector('.login-btn-expert');
-    if (studentBtn) {
-        studentBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            openAuthModal();
-        });
-    }
-    if (expertBtn) {
-        expertBtn.addEventListener('click', (e) => {
+    // Привязка к кнопке входа/регистрации
+    const loginBtn = document.querySelector('.login-btn-expert');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             openAuthModal();
         });
@@ -155,7 +148,7 @@ export function initAuthModal() {
             }
             try {
                 await authAPI.login(email, password);
-                window.location.href = 'expert.html';
+                window.location.href = 'group.html';
             } catch (err) {
                 showAuthError(err.message);
                 document.getElementById('auth-password').value = '';
@@ -229,10 +222,4 @@ export function initAuthModal() {
     }
 }
 
-export function requireAuth() {
-    if (!authAPI.isAuthenticated()) {
-        window.location.href = '/index.html';
-        return false;
-    }
     return true;
-}

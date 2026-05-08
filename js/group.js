@@ -1,13 +1,23 @@
 import { authAPI, usersAPI, groupsAPI } from './api.js';
-import { requireAuth } from './auth-module.js';
 
 let currentGroupId = null;
-let currentUser = { id: null, name: '', surname: '', patronymic: '', email: '' };
+let currentUserRole = null;
+let groupsList = [];
 
 function showToast(message, isError = false) {
   const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.style.background = isError ? '#dc2626' : '#1f2937';
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+    ${isError ? 'background: #dc2626;' : 'background: #1f2937;'}
+  `;
   toast.textContent = message;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
@@ -26,29 +36,18 @@ function escapeHtml(str) {
 async function loadCurrentUser() {
   try {
     const user = await usersAPI.getMe();
-    currentUser = {
-      id: user.id,
-      name: user.name || '',
-      surname: user.surname || '',
-      patronymic: user.patronymic || '',
-      email: user.email || ''
-    };
-
     const displayName = (user.name && user.surname)
       ? `${user.name} ${user.surname}`
       : (user.name || user.email || 'Пользователь');
 
-    document.getElementById('userNameDisplay').innerText = displayName;
-    document.getElementById('headerUserName').innerText = displayName;
-
-    document.getElementById('profileFirstName').value = user.name || '';
-    document.getElementById('profileLastName').value = user.surname || '';
-    document.getElementById('profileEmail').value = user.email || '';
-    const patronymicField = document.getElementById('profilePatronymic');
-    if (patronymicField) patronymicField.value = user.patronymic || '';
+    const userNameDisplay = document.getElementById('userNameDisplay');
+    const headerUserName = document.getElementById('headerUserName');
+    if (userNameDisplay) userNameDisplay.innerText = displayName;
+    if (headerUserName) headerUserName.innerText = displayName;
   } catch (error) {
     console.error('Ошибка загрузки пользователя:', error);
-    document.getElementById('headerUserName').innerText = 'Гость';
+    const headerUserName = document.getElementById('headerUserName');
+    if (headerUserName) headerUserName.innerText = 'Гость';
   }
 }
 
@@ -68,6 +67,7 @@ async function loadGroups() {
 function renderGroupsList(groups) {
   const container = document.getElementById('groupsListContainer');
   const detailsContainer = document.getElementById('groupsListDetails');
+
   const renderInto = (parent, activeId) => {
     if (!parent) return;
     if (groups.length === 0) {
@@ -85,14 +85,13 @@ function renderGroupsList(groups) {
         div.setAttribute('data-group-id', group.id);
         div.innerHTML = `
           <span class="text-sm font-medium ${isActive ? 'text-purple-900' : 'text-gray-800'} group-name">${escapeHtml(group.name)}</span>
-          <div class="w-px h-5 bg-purple-300 mx-2 group-divider"></div>
+          <div class="group-divider"></div>
           <span class="text-sm ${isActive ? 'text-purple-800' : 'text-gray-600'} group-role">${escapeHtml(group.role || 'участник')}</span>
         `;
         div.onclick = () => openGroupDetails(group.id);
         parent.appendChild(div);
       });
     }
-    // Элемент-растяжка для активации скроллбара
     parent.insertAdjacentHTML('beforeend', '<div style="height: 2px;"></div>');
   };
 
@@ -100,38 +99,86 @@ function renderGroupsList(groups) {
   renderInto(detailsContainer, currentGroupId);
 }
 
+function setUserRole(role) {
+  currentUserRole = role;
+
+  const organizerActions = document.getElementById('organizerActions');
+  const expertActions = document.getElementById('expertActions');
+  const studentActions = document.getElementById('studentActions');
+
+  if (organizerActions) organizerActions.classList.add('hidden');
+  if (expertActions) expertActions.classList.add('hidden');
+  if (studentActions) studentActions.classList.add('hidden');
+
+  document.querySelectorAll('.role-organizer-only').forEach(el => el.classList.add('hidden'));
+
+  switch(role) {
+    case 'organizer':
+    case 'creator':
+      if (organizerActions) organizerActions.classList.remove('hidden');
+      document.querySelectorAll('.role-organizer-only').forEach(el => el.classList.remove('hidden'));
+      break;
+    case 'expert':
+    case 'reviewer':
+      if (expertActions) expertActions.classList.remove('hidden');
+      break;
+    case 'student':
+    case 'member':
+      if (studentActions) studentActions.classList.remove('hidden');
+      break;
+    default:
+      if (studentActions) studentActions.classList.remove('hidden');
+  }
+}
+
+function showSection(sectionName) {
+  const sectionGroups = document.getElementById('sectionGroups');
+  const sectionGroupDetails = document.getElementById('sectionGroupDetails');
+
+  if (sectionName === 'groups') {
+    if (sectionGroups) {
+      sectionGroups.classList.remove('hidden');
+      sectionGroups.classList.add('active');
+    }
+    if (sectionGroupDetails) {
+      sectionGroupDetails.classList.add('hidden');
+      sectionGroupDetails.classList.remove('active');
+    }
+    currentGroupId = null;
+    currentUserRole = null;
+  } else if (sectionName === 'details') {
+    if (sectionGroups) {
+      sectionGroups.classList.add('hidden');
+      sectionGroups.classList.remove('active');
+    }
+    if (sectionGroupDetails) {
+      sectionGroupDetails.classList.remove('hidden');
+      sectionGroupDetails.classList.add('active');
+    }
+  }
+}
+
 async function openGroupDetails(groupId) {
   currentGroupId = groupId;
   try {
     const group = groupsList.find(g => g.id === groupId);
     if (!group) throw new Error('Группа не найдена');
-    document.getElementById('currentGroupNameSpan').innerText = group.name;
 
-    const studentInviteField = document.getElementById('studentInviteField');
-    const expertInviteField = document.getElementById('expertInviteField');
-    if (studentInviteField) {
-      studentInviteField.value = group.student_invite_token 
-        ? group.student_invite_token
-        : 'Токен не сгенерирован (создайте новую группу)';
-    }
-    if (expertInviteField) {
-      expertInviteField.value = group.reviewer_invite_token 
-        ? group.reviewer_invite_token
-        : 'Токен не сгенерирован (создайте новую группу)';
-    }
+    const userRole = group.role || 'member';
+    setUserRole(userRole);
 
-    // Показываем блок приглашений при открытии деталей группы
-    const inviteBlock = document.getElementById('inviteLinksBlock');
-    if (inviteBlock) inviteBlock.classList.remove('hidden');
+    const currentGroupNameSpan = document.getElementById('currentGroupNameSpan');
+    if (currentGroupNameSpan) currentGroupNameSpan.innerText = group.name;
 
     const members = await groupsAPI.getMembers(groupId);
     renderMembers(members);
 
-    document.querySelectorAll('.section-content').forEach(sec => sec.classList.remove('active'));
-    document.getElementById('sectionGroupDetails').classList.add('active');
+    showSection('details');
     await loadGroups();
+
   } catch (error) {
     showToast('Не удалось загрузить группу', true);
+    console.error(error);
   }
 }
 
@@ -177,25 +224,25 @@ function renderMembers(members) {
   }
 }
 
-// Создание группы – показываем приглашения после успешного создания
 const createGroupBtn = document.getElementById('createGroupBtn');
 if (createGroupBtn) {
   createGroupBtn.onclick = async () => {
-    const name = document.getElementById('newGroupName').value.trim();
+    const nameInput = document.getElementById('newGroupName');
+    const name = nameInput?.value.trim();
     if (!name) { showToast('Введите название группы', true); return; }
-    const btn = document.getElementById('createGroupBtn');
-    btn.disabled = true;
-    btn.textContent = 'Создание...';
+
+    createGroupBtn.disabled = true;
+    createGroupBtn.textContent = 'Создание...';
+
     try {
       const newGroup = await groupsAPI.createGroup(name);
-      showToast(`Группа "${name}" создана!`);
-      document.getElementById('newGroupName').value = '';
 
-      // Показываем блок с приглашениями
+      showToast(`Группа "${name}" создана!`);
+      if (nameInput) nameInput.value = '';
+
       const inviteBlock = document.getElementById('inviteLinksBlock');
       if (inviteBlock) inviteBlock.classList.remove('hidden');
 
-      // Заполняем токены приглашений
       const studentField = document.getElementById('studentInviteField');
       const expertField = document.getElementById('expertInviteField');
       if (studentField && newGroup.student_invite_token) {
@@ -206,45 +253,53 @@ if (createGroupBtn) {
       }
 
       await loadGroups();
-      await openGroupDetails(newGroup.id);
     } catch (error) {
       showToast('Ошибка создания группы: ' + error.message, true);
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Создать новую группу';
+      createGroupBtn.disabled = false;
+      createGroupBtn.textContent = 'Создать новую группу';
     }
   };
 }
 
-// Присоединение по коду (элемент может отсутствовать в новом HTML)
-const joinGroupBtn = document.getElementById('joinGroupBtn');
-if (joinGroupBtn) {
-  joinGroupBtn.onclick = async () => {
-    const code = document.getElementById('joinCodeInput').value.trim();
-    if (!code) { showToast('Введите код приглашения', true); return; }
-    try {
-      const result = await groupsAPI.joinGroupByToken(code);
-      showToast(result.message || 'Вы присоединились к группе!');
-      document.getElementById('joinCodeInput').value = '';
-      await loadGroups();
-      document.querySelectorAll('.section-content').forEach(sec => sec.classList.remove('active'));
-      document.getElementById('sectionGroups').classList.add('active');
-      currentGroupId = null;
-    } catch (error) {
-      showToast('Неверный код приглашения', true);
+const addExpertBtn = document.getElementById('addExpertBtn');
+if (addExpertBtn) {
+  addExpertBtn.onclick = async () => {
+    if (!currentGroupId) return;
+    const group = groupsList.find(g => g.id === currentGroupId);
+    const linkBlock = document.getElementById('expertLinkBlock');
+    const linkField = document.getElementById('expertInviteLink');
+
+    if (linkBlock) linkBlock.classList.remove('hidden');
+
+    if (group && group.reviewer_invite_token && linkField) {
+      linkField.value = group.reviewer_invite_token;
+      showToast('Ссылка для приглашения эксперта готова');
+    } else {
+      showToast('Ссылка недоступна', true);
     }
   };
 }
 
-// Добавление участника
-const addMemberBtn = document.getElementById('addMemberBtn');
-if (addMemberBtn) {
-  addMemberBtn.onclick = () => {
-    showToast('Для добавления участника скопируйте код приглашения из группы (функция в разработке)', false);
+const addStudentBtn = document.getElementById('addStudentBtn');
+if (addStudentBtn) {
+  addStudentBtn.onclick = async () => {
+    if (!currentGroupId) return;
+    const group = groupsList.find(g => g.id === currentGroupId);
+    const linkBlock = document.getElementById('studentLinkBlock');
+    const linkField = document.getElementById('studentInviteLink');
+
+    if (linkBlock) linkBlock.classList.remove('hidden');
+
+    if (group && group.student_invite_token && linkField) {
+      linkField.value = group.student_invite_token;
+      showToast('Ссылка для приглашения студента готова');
+    } else {
+      showToast('Ссылка недоступна', true);
+    }
   };
 }
 
-// Выпадающий список удаления
 const removeBtn = document.getElementById('removeMemberBtn');
 const removeDropdown = document.getElementById('removeMemberDropdown');
 if (removeBtn && removeDropdown) {
@@ -259,28 +314,85 @@ if (removeBtn && removeDropdown) {
   });
 }
 
-// Навигация – скрываем приглашения при возврате к списку групп
-const backBtn = document.getElementById('backToGroupsBtn');
-if (backBtn) {
-  backBtn.onclick = async () => {
-    document.querySelectorAll('.section-content').forEach(sec => sec.classList.remove('active'));
-    document.getElementById('sectionGroups').classList.add('active');
-
-    // Скрываем блок приглашений
-    const inviteBlock = document.getElementById('inviteLinksBlock');
-    if (inviteBlock) inviteBlock.classList.add('hidden');
-
-    await loadGroups();
-    currentGroupId = null;
+const goToReviewBtn = document.getElementById('goToReviewBtn');
+if (goToReviewBtn) {
+  goToReviewBtn.onclick = () => {
+    // TODO: реализовать переход к проверке работ
+    showToast('Переход к проверке работ (в разработке)');
   };
 }
 
-// Выпадающее меню профиля
+const sendForReviewBtn = document.getElementById('sendForReviewBtn');
+if (sendForReviewBtn) {
+  sendForReviewBtn.onclick = async () => {
+    const link = document.getElementById('projectLinkInput')?.value.trim();
+    if (!link) {
+      showToast('Введите ссылку на проект', true);
+      return;
+    }
+    if (!currentGroupId) {
+      showToast('Сначала выберите группу', true);
+      return;
+    }
+
+    sendForReviewBtn.disabled = true;
+    sendForReviewBtn.textContent = 'Отправка...';
+
+    try {
+      await groupsAPI.submitWork(link, currentGroupId);
+      showToast('Проект отправлен на проверку');
+      document.getElementById('projectLinkInput').value = '';
+    } catch (error) {
+      showToast('Ошибка отправки: ' + error.message, true);
+    } finally {
+      sendForReviewBtn.disabled = false;
+      sendForReviewBtn.textContent = 'Отправить на проверку';
+    }
+  };
+}
+
+const studentSendForReviewBtn = document.getElementById('studentSendForReviewBtn');
+if (studentSendForReviewBtn) {
+  studentSendForReviewBtn.onclick = async () => {
+    const link = document.getElementById('studentProjectLink')?.value.trim();
+    if (!link) {
+      showToast('Введите ссылку на проект', true);
+      return;
+    }
+    if (!currentGroupId) {
+      showToast('Сначала выберите группу', true);
+      return;
+    }
+
+    studentSendForReviewBtn.disabled = true;
+    studentSendForReviewBtn.textContent = 'Отправка...';
+
+    try {
+      await groupsAPI.submitWork(link, currentGroupId);
+      showToast('Проект отправлен на проверку');
+      document.getElementById('studentProjectLink').value = '';
+    } catch (error) {
+      showToast('Ошибка отправки: ' + error.message, true);
+    } finally {
+      studentSendForReviewBtn.disabled = false;
+      studentSendForReviewBtn.textContent = 'Отправить на проверку';
+    }
+  };
+}
+
+const backBtn = document.getElementById('backToGroupsBtn');
+if (backBtn) {
+  backBtn.onclick = async () => {
+    showSection('groups');
+    await loadGroups();
+  };
+}
+
 const profileIconBtn = document.getElementById('profile-btn');
 const profileDropdownMenu = document.getElementById('profileDropdown');
 
 function toggleProfileMenu() {
-  profileDropdownMenu.classList.toggle('hidden');
+  profileDropdownMenu?.classList.toggle('hidden');
 }
 
 if (profileIconBtn) {
@@ -290,12 +402,12 @@ if (profileIconBtn) {
   });
 }
 
-// Закрытие при клике вне меню
-document.addEventListener('click', () => {
-  profileDropdownMenu?.classList.remove('show');
+document.addEventListener('click', (e) => {
+  if (profileDropdownMenu && !profileDropdownMenu.contains(e.target) && e.target !== profileIconBtn) {
+    profileDropdownMenu.classList.add('hidden');
+  }
 });
 
-// Выход
 const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
   logoutBtn.onclick = () => {
@@ -305,7 +417,6 @@ if (logoutBtn) {
 }
 
 async function init() {
-  // if (!requireAuth()) return;
   await loadCurrentUser();
   await loadGroups();
 }

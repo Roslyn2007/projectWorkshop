@@ -1,17 +1,9 @@
-import { authAPI, usersAPI } from './api.js';
+import { authAPI, usersAPI, groupsAPI } from './api.js';
 
 let currentDate = new Date();
 let events = [];
 let selectedParticipants = [];
 let activeEventBlock = null;
-
-const mockParticipants = [
-  { id: 1, name: 'Участник 1' },
-  { id: 2, name: 'Участник 2' },
-  { id: 3, name: 'Участник 3' },
-  { id: 4, name: 'Участник 4' },
-  { id: 5, name: 'Участник 5' },
-];
 
 function showToast(message, isError = false) {
   const toast = document.createElement('div');
@@ -28,14 +20,11 @@ async function loadCurrentUser() {
       ? `${user.name} ${user.surname}`
       : (user.name || user.email || 'Пользователь');
     document.getElementById('headerUserName').innerText = displayName;
-
-    document.getElementById('profileFirstName').value = user.name || '';
-    document.getElementById('profileLastName').value = user.surname || '';
-    document.getElementById('profileEmail').value = user.email || '';
-    const patronymicField = document.getElementById('profilePatronymic');
-    if (patronymicField) patronymicField.value = user.patronymic || '';
   } catch (error) {
     document.getElementById('headerUserName').innerText = 'Гость';
+    if (error.message && error.message.includes('Сессия истекла')) {
+      return;
+    }
   }
 }
 
@@ -50,10 +39,7 @@ function renderCalendar() {
   document.getElementById('monthYearDisplay').innerText = `${monthNames[month]} ${year}`;
 
   const grid = document.getElementById('calendarGrid');
-  if (!grid) {
-    console.error('calendarGrid не найден!');
-    return;
-  }
+  if (!grid) return;
   grid.innerHTML = '';
 
   const firstDay = new Date(year, month, 1);
@@ -82,11 +68,9 @@ function renderCalendar() {
 
 function createCell(dayNum, isOtherMonth, dayEvents = []) {
   const cell = document.createElement('div');
-  // Tailwind-классы для ячейки: граница, отступ, минимальная высота, относительное позиционирование
   cell.className = 'border border-gray-300 p-2 min-h-[100px] relative';
 
   const numSpan = document.createElement('div');
-  // Номер дня: серый для другого месяца, чёрный для текущего
   numSpan.className = `text-sm font-medium mb-1 ${isOtherMonth ? 'text-gray-400' : 'text-gray-800'}`;
   numSpan.innerText = dayNum;
   cell.appendChild(numSpan);
@@ -94,7 +78,6 @@ function createCell(dayNum, isOtherMonth, dayEvents = []) {
   if (!isOtherMonth && dayEvents.length > 0) {
     dayEvents.forEach(evt => {
       const evDiv = document.createElement('div');
-      // Оранжевый блок мероприятия как на фото
       evDiv.className = 'mt-1 px-2 py-1 bg-orange-500 text-white text-xs rounded cursor-pointer truncate hover:bg-orange-600 transition';
       evDiv.innerText = evt.topic;
       evDiv.addEventListener('click', (e) => {
@@ -112,10 +95,8 @@ function createCell(dayNum, isOtherMonth, dayEvents = []) {
   return cell;
 }
 
-// ========== ТУЛТИП (Tailwind-классы) ==========
 function showEventTooltip(event, eventElement, cellElement) {
   const tooltip = document.createElement('div');
-  // Tailwind-классы для тултипа
   tooltip.className = 'absolute top-full left-0 mt-1 bg-white border border-orange-400 rounded shadow-lg z-50 p-4 w-64';
 
   const participantsHtml = event.participants?.length > 0
@@ -169,7 +150,6 @@ function showEventTooltip(event, eventElement, cellElement) {
   cellElement.appendChild(tooltip);
   activeEventBlock = tooltip;
 
-  // Проверяем выход за правый край
   const tooltipRect = tooltip.getBoundingClientRect();
   if (tooltipRect.right > window.innerWidth - 20) {
     tooltip.classList.remove('left-0');
@@ -223,7 +203,7 @@ function switchSection(name) {
     s.classList.remove('active');
     s.classList.add('hidden');
   });
-  
+
   const section = document.getElementById(`section${name.charAt(0).toUpperCase() + name.slice(1)}`);
   if (section) {
     section.classList.add('active');
@@ -242,9 +222,34 @@ function clearEventForm() {
 }
 
 // ========== УЧАСТНИКИ ==========
+// TODO: заменить на загрузку реальных участников из API когда бэкенд будет готов
+let availableParticipants = [];
+
+async function loadParticipants() {
+  try {
+    // Пытаемся загрузить участников из первой группы пользователя
+    const groups = await groupsAPI.getMyGroups();
+    if (groups && groups.length > 0) {
+      const members = await groupsAPI.getMembers(groups[0].id);
+      availableParticipants = members.map(m => ({
+        id: m.user_id,
+        name: `${m.name || ''} ${m.surname || ''}`.trim() || m.email || `User ${m.user_id}`
+      }));
+    }
+  } catch (error) {
+    console.log('Не удалось загрузить участников групп:', error.message);
+    availableParticipants = [];
+  }
+}
+
 function renderParticipantsDropdown() {
   const dropdown = document.getElementById('participantsDropdown');
-  dropdown.innerHTML = mockParticipants.map(p => `
+  if (availableParticipants.length === 0) {
+    dropdown.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">Нет доступных участников</div>';
+    return;
+  }
+
+  dropdown.innerHTML = availableParticipants.map(p => `
     <label class="flex items-center gap-2 px-3 py-2 hover:bg-orange-50 cursor-pointer">
       <input type="checkbox" value="${p.id}" data-name="${p.name}" ${selectedParticipants.find(sp => sp.id === p.id) ? 'checked' : ''}>
       <span class="text-sm text-gray-700">${p.name}</span>
@@ -344,7 +349,7 @@ if (profileIconBtn) {
 
 document.addEventListener('click', (e) => {
   if (!profileDropdownMenu.contains(e.target) && e.target !== profileIconBtn) {
-    profileDropdownMenu?.classList.add('hidden');
+    profileDropdownMenu.classList.add('hidden');
   }
 });
 
@@ -356,16 +361,7 @@ document.getElementById('logoutBtn').onclick = () => {
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
   await loadCurrentUser();
-  renderCalendar();
-
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, '0');
-  events = [
-    { id: 1, date: `${y}-${m}-02`, topic: 'мероприятие 1', place: 'Кабинет 101', startTime: '10:00', endTime: '12:00', participants: ['Участник 1', 'Участник 2'] },
-    { id: 2, date: `${y}-${m}-02`, topic: 'мероприятие 2', place: 'Кабинет 102', startTime: '14:00', endTime: '16:00', participants: ['Участник 3'] },
-    { id: 3, date: `${y}-${m}-04`, topic: 'мероприятие 3', place: 'Аудитория 305', startTime: '09:00', endTime: '11:00', participants: ['Участник 1', 'Участник 2', 'Участник 3', 'Участник 4', 'Участник 5'] },
-  ];
+  await loadParticipants();
   renderCalendar();
 }
 

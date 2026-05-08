@@ -130,8 +130,35 @@ export const groupsAPI = {
         return await request(`/groups/${groupId}/members/${userId}`, 'DELETE');
     },
 
-    // Получить критерии группы (если нужно)
+    // Получить критерии группы
     async getCriteria(groupId) {
         return await request(`/groups/${groupId}/criteria`, 'GET');
+    },
+
+    // ========== Работы / Проекты ==========
+
+    // Отправить проект на проверку (студент)
+    async submitWork(link, groupId) {
+        return await request('/groups/submit', 'POST', { link, group_id: groupId });
+    },
+
+    // Получить детали работы с оценками
+    async getSubmission(submissionId) {
+        return await request(`/groups/submissions/${submissionId}`, 'GET');
+    },
+
+    // Оценить работу (эксперт)
+    async reviewWork(submissionId, comment, grades) {
+        return await request(`/groups/submissions/${submissionId}/review`, 'POST', { comment, grades });
+    },
+
+    // Обновить ссылку на проект (студент)
+    async updateSubmissionLink(submissionId, link) {
+        return await request(`/groups/submissions/${submissionId}/link`, 'PUT', { link });
+    },
+
+    // Обновить комментарий проверяющего (эксперт)
+    async updateSubmissionComment(submissionId, comment) {
+        return await request(`/groups/submissions/${submissionId}/comment`, 'PUT', { comment });
     }
 };

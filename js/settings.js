@@ -23,6 +23,9 @@ async function loadCurrentUser() {
     if (patronymicField) patronymicField.value = user.patronymic || '';
   } catch (error) {
     document.getElementById('headerUserName').innerText = 'Гость';
+    if (error.message && error.message.includes('Сессия истекла')) {
+      return;
+    }
   }
 }
 
@@ -43,32 +46,28 @@ if (profileIconBtn) {
 
 document.addEventListener('click', (e) => {
   if (!profileDropdownMenu.contains(e.target) && e.target !== profileIconBtn) {
-    profileDropdownMenu?.classList.add('hidden');
+    profileDropdownMenu.classList.add('hidden');
   }
 });
 
 // ========== ТАБЫ ==========
 function switchTab(tabName) {
-  // Сброс всех табов
   document.querySelectorAll('.settings-tab').forEach(t => {
     t.classList.remove('text-orange-500', 'border-orange-500');
     t.classList.add('text-gray-500', 'border-transparent');
   });
-  
-  // Активируем нужный таб
+
   const activeTab = document.querySelector(`.settings-tab[data-tab="${tabName}"]`);
   if (activeTab) {
     activeTab.classList.add('text-orange-500', 'border-orange-500');
     activeTab.classList.remove('text-gray-500', 'border-transparent');
   }
-  
-  // Скрываем ВСЕ панели
+
   document.querySelectorAll('.tab-panel').forEach(p => {
     p.classList.remove('active');
     p.classList.add('hidden');
   });
-  
-  // Показываем нужную панель
+
   const panel = document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
   if (panel) {
     panel.classList.remove('hidden');
@@ -76,11 +75,8 @@ function switchTab(tabName) {
   }
 }
 
-// Навешиваем обработчики на табы
 document.querySelectorAll('.settings-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    switchTab(tab.dataset.tab);
-  });
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
 
 // ========== СОХРАНЕНИЕ ПРОФИЛЯ ==========
@@ -89,7 +85,12 @@ document.getElementById('saveProfileBtn').addEventListener('click', async () => 
   const surname = document.getElementById('profileLastName').value.trim();
   const email = document.getElementById('profileEmail').value.trim();
   const patronymic = document.getElementById('profilePatronymic')?.value.trim();
-  
+
+  if (!name || !surname || !email) {
+    showToast('Заполните обязательные поля (имя, фамилия, email)', true);
+    return;
+  }
+
   try {
     await usersAPI.updateProfile({ name, surname, patronymic, email });
     showToast('Профиль обновлён');
@@ -113,7 +114,8 @@ document.getElementById('changePasswordBtn').addEventListener('click', () => {
     showToast('Пароли не совпадают', true);
     return;
   }
-  
+
+  // TODO: подключить API смены пароля когда бэкенд будет готов
   showToast('Функция смены пароля временно недоступна', true);
 });
 
@@ -126,7 +128,6 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
   await loadCurrentUser();
-  // По умолчанию показываем "Личные данные"
   switchTab('personal');
 }
 
