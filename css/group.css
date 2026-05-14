@@ -1,4 +1,3 @@
-/* === Скроллбар "Мои группы" === */
 .groups-scrollbar::-webkit-scrollbar {
   width: 16px;
 }
@@ -46,7 +45,6 @@
   display: none;
 }
 
-/* === Скроллбар "Участники" (фиолетовый) === */
 .members-scrollbar::-webkit-scrollbar {
   width: 12px;
 }
@@ -66,7 +64,6 @@
   background: #6d28d9;
 }
 
-/* === Скроллбар dropdown "Удалить участника" (оранжевый) === */
 .remove-dropdown-scrollbar::-webkit-scrollbar {
   width: 12px;
 }
@@ -86,7 +83,6 @@
   background: #ea580c;
 }
 
-/* === Фиксированная ширина элементов группы === */
 .group-item {
   display: flex;
   align-items: center;
@@ -118,7 +114,6 @@
   white-space: nowrap;
 }
 
-/* === Фиксированный размер кнопок ролей === */
 .role-btn {
   width: 220px;
   min-width: 220px;
@@ -126,26 +121,21 @@
   justify-content: center;
 }
 
-/* === Индикатор роли === */
 #roleIndicator {
   background-color: #1f2937;
   color: #f97316;
 }
 
-/* === Анимация toast === */
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* === Переключение секций === */
 .section-content { display: none; }
 .section-content.active { display: block; }
 
-/* === Скрытие/показ элементов === */
 .hidden { display: none !important; }
 
-/* === Firefox scrollbar support === */
 .groups-scrollbar {
   scrollbar-width: 16px;
   scrollbar-color: #8d51f3 #f5f0ff;
@@ -161,7 +151,6 @@
   scrollbar-color: #f97316 #fff1e6;
 }
 
-/* === Ensure scrollbars are always visible === */
 .members-scrollbar,
 .groups-scrollbar,
 .remove-dropdown-scrollbar {
@@ -173,4 +162,16 @@
 .groups-scrollbar::-webkit-scrollbar,
 .remove-dropdown-scrollbar::-webkit-scrollbar {
   display: block;
+}
+
+.mode-btn.is-active {
+  background-color: #ffffff !important;
+  color: #f97316 !important;
+  border-color: #f97316 !important;
+}
+
+/* Убираем браузерную вторую рамку при нажатии */
+.mode-btn:focus,
+.mode-btn:focus-visible {
+  outline: none;
 }

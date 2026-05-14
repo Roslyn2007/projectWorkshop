@@ -29,28 +29,6 @@ async function loadCurrentUser() {
   }
 }
 
-// ========== ВЫПАДАЮЩЕЕ МЕНЮ ==========
-const profileIconBtn = document.getElementById('profile-btn');
-const profileDropdownMenu = document.getElementById('profileDropdown');
-
-function toggleProfileMenu() {
-  profileDropdownMenu.classList.toggle('hidden');
-}
-
-if (profileIconBtn) {
-  profileIconBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleProfileMenu();
-  });
-}
-
-document.addEventListener('click', (e) => {
-  if (!profileDropdownMenu.contains(e.target) && e.target !== profileIconBtn) {
-    profileDropdownMenu.classList.add('hidden');
-  }
-});
-
-// ========== ТАБЫ ==========
 function switchTab(tabName) {
   document.querySelectorAll('.settings-tab').forEach(t => {
     t.classList.remove('text-orange-500', 'border-orange-500');
@@ -79,7 +57,6 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
   tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
 
-// ========== СОХРАНЕНИЕ ПРОФИЛЯ ==========
 document.getElementById('saveProfileBtn').addEventListener('click', async () => {
   const name = document.getElementById('profileFirstName').value.trim();
   const surname = document.getElementById('profileLastName').value.trim();
@@ -100,7 +77,6 @@ document.getElementById('saveProfileBtn').addEventListener('click', async () => 
   }
 });
 
-// ========== СМЕНА ПАРОЛЯ ==========
 document.getElementById('changePasswordBtn').addEventListener('click', () => {
   const current = document.getElementById('currentPassword').value;
   const newPass = document.getElementById('newPassword').value;
@@ -115,17 +91,9 @@ document.getElementById('changePasswordBtn').addEventListener('click', () => {
     return;
   }
 
-  // TODO: подключить API смены пароля когда бэкенд будет готов
   showToast('Функция смены пароля временно недоступна', true);
 });
 
-// ========== ВЫХОД ==========
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  authAPI.logout();
-  window.location.href = '/index.html';
-});
-
-// ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
   await loadCurrentUser();
   switchTab('personal');

@@ -1,4 +1,4 @@
-import { authAPI } from './api.js';
+import { authAPI, usersAPI } from './api.js';
 
 let lastFocusedElement = null;
 
@@ -101,6 +101,76 @@ function switchAuthTab(tab) {
         tabRegister.className = activeClass;
         document.getElementById('reg-email')?.focus();
     }
+}
+
+export async function initAuthHeader() {
+  const guestNav = document.getElementById('guestNav');
+  const loggedNav = document.getElementById('loggedNav');
+  const headerUserName = document.getElementById('headerUserName');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  if (!guestNav || !loggedNav) return;
+
+  if (authAPI.isAuthenticated()) {
+    // Показываем авторизованную навигацию
+    guestNav.classList.add('hidden');
+    loggedNav.classList.remove('hidden');
+    loggedNav.classList.add('flex');
+
+    // Загружаем имя пользователя
+    try {
+      const user = await usersAPI.getMe();
+      const displayName = (user.name && user.surname)
+        ? `${user.name} ${user.surname}`
+        : (user.name || user.email || 'Пользователь');
+      if (headerUserName) headerUserName.innerText = displayName;
+    } catch (error) {
+      if (headerUserName) headerUserName.innerText = 'Пользователь';
+    }
+
+    // Обработчик выхода
+    if (logoutBtn) {
+      logoutBtn.onclick = () => {
+        authAPI.logout();
+        window.location.reload();
+      };
+    }
+
+    // Инициализация выпадающего меню профиля
+    const profileIconBtn = document.getElementById('profile-btn');
+    const profileDropdownMenu = document.getElementById('profileDropdown');
+
+    function toggleProfileMenu() {
+      profileDropdownMenu?.classList.toggle('hidden');
+    }
+
+    if (profileIconBtn) {
+      profileIconBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleProfileMenu();
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (profileDropdownMenu && !profileDropdownMenu.contains(e.target) && e.target !== profileIconBtn) {
+        profileDropdownMenu.classList.add('hidden');
+      }
+    });
+
+  } else {
+    // Показываем гостевую навигацию
+    guestNav.classList.remove('hidden');
+    loggedNav.classList.add('hidden');
+    loggedNav.classList.remove('flex');
+
+    // Гостевой клик открывает модалку
+    const guestNavEl = document.getElementById('guestNav');
+    if (guestNavEl) {
+      guestNavEl.addEventListener('click', () => {
+        openAuthModal();
+      });
+    }
+  }
 }
 
 export function initAuthModal() {
@@ -221,5 +291,3 @@ export function initAuthModal() {
         });
     }
 }
-
-    return true;

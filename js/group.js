@@ -41,13 +41,9 @@ async function loadCurrentUser() {
       : (user.name || user.email || 'Пользователь');
 
     const userNameDisplay = document.getElementById('userNameDisplay');
-    const headerUserName = document.getElementById('headerUserName');
     if (userNameDisplay) userNameDisplay.innerText = displayName;
-    if (headerUserName) headerUserName.innerText = displayName;
   } catch (error) {
     console.error('Ошибка загрузки пользователя:', error);
-    const headerUserName = document.getElementById('headerUserName');
-    if (headerUserName) headerUserName.innerText = 'Гость';
   }
 }
 
@@ -317,8 +313,11 @@ if (removeBtn && removeDropdown) {
 const goToReviewBtn = document.getElementById('goToReviewBtn');
 if (goToReviewBtn) {
   goToReviewBtn.onclick = () => {
-    // TODO: реализовать переход к проверке работ
-    showToast('Переход к проверке работ (в разработке)');
+    if (!currentGroupId) {
+      showToast('Сначала выберите группу', true);
+      return;
+    }
+    window.location.href = `review.html?group=${currentGroupId}`;
   };
 }
 
@@ -388,37 +387,27 @@ if (backBtn) {
   };
 }
 
-const profileIconBtn = document.getElementById('profile-btn');
-const profileDropdownMenu = document.getElementById('profileDropdown');
-
-function toggleProfileMenu() {
-  profileDropdownMenu?.classList.toggle('hidden');
-}
-
-if (profileIconBtn) {
-  profileIconBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleProfileMenu();
-  });
-}
-
-document.addEventListener('click', (e) => {
-  if (profileDropdownMenu && !profileDropdownMenu.contains(e.target) && e.target !== profileIconBtn) {
-    profileDropdownMenu.classList.add('hidden');
-  }
-});
-
-const logoutBtn = document.getElementById('logoutBtn');
-if (logoutBtn) {
-  logoutBtn.onclick = () => {
-    authAPI.logout();
-    window.location.href = '/index.html';
-  };
-}
-
 async function init() {
   await loadCurrentUser();
   await loadGroups();
+
+  // ── Переключение режимов ──
+  const modeSelector = document.getElementById('modeSelector');
+  if (modeSelector) {
+    const buttons = modeSelector.querySelectorAll('.mode-btn');
+    
+    // По умолчанию активен первый режим
+    if (buttons.length > 0) {
+      buttons[0].classList.add('is-active');
+    }
+    
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+      });
+    });
+  }
 }
 
 init();

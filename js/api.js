@@ -31,11 +31,10 @@ async function request(endpoint, method = 'GET', body = null, needsAuth = true) 
 
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, options);
-        
+
         // Если 401 – неавторизован, очищаем токен и выбрасываем ошибку
         if (response.status === 401) {
           setAuthToken('');
-          // Редирект на страницу входа, если мы не там
           if (typeof window !== 'undefined' && !window.location.pathname.includes('/index.html')) {
             window.location.href = '/index.html';
           }
@@ -53,7 +52,6 @@ async function request(endpoint, method = 'GET', body = null, needsAuth = true) 
     }
 }
 
-// ============= Авторизация =============
 export const authAPI = {
     async login(email, password) {
         const data = await request('/auth/login', 'POST', { email, password }, false);
@@ -64,14 +62,13 @@ export const authAPI = {
     },
 
     async register(userData) {
-        // userData должен содержать email, password, first_name?, last_name?
-        // По схеме UserCreate: email, password, first_name?, last_name?
+        // userData: { email, password, name, surname, patronymic }
         return await request('/users/register', 'POST', userData, false);
     },
 
     logout() {
         setAuthToken('');
-        localStorage.removeItem('userRole'); // очищаем старые ключи
+        localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
     },
 
@@ -84,26 +81,41 @@ export const authAPI = {
     }
 };
 
-// ============= Пользователи =============
 export const usersAPI = {
+    // ⚠️ GET /users/me отсутствует на бэкенде!
+    // Если добавят — раскомментируйте:
+    // async getMe() {
+    //     return await request('/users/me', 'GET');
+    // },
+
+    // Временно: декодируем токен локально (небезопасно для production)
     async getMe() {
-        return await request('/users/me', 'GET');
+        try {
+            const token = authToken.split('.')[1];
+            const payload = JSON.parse(atob(token));
+            // Пытаемся получить данные из токена или возвращаем заглушку
+            return {
+                id: payload.user_id,
+                email: payload.sub || 'user@example.com',
+                name: payload.name || 'Пользователь',
+                surname: payload.surname || ''
+            };
+        } catch {
+            // Fallback: пробуем загрузить через другой эндпоинт
+            throw new Error('Не удалось получить данные пользователя');
+        }
     },
 
     async updateProfile(data) {
-        // data: { email?, first_name?, last_name? }
+        // data: { email?, name?, surname?, patronymic? }
         return await request('/users/me', 'PUT', data);
     },
 
     async changePassword(current_password, new_password) {
-        // В вашем бэкенде эндпоинт для смены пароля отсутствует.
-        // Если добавите – раскомментируйте:
-        // return await request('/users/change-password', 'POST', { current_password, new_password });
         throw new Error('Смена пароля временно недоступна');
     }
 };
 
-// ============= Группы =============
 export const groupsAPI = {
     // Получить все группы текущего пользователя
     async getMyGroups() {
@@ -130,12 +142,38 @@ export const groupsAPI = {
         return await request(`/groups/${groupId}/members/${userId}`, 'DELETE');
     },
 
+    //  КРИТЕРИИ ОЦЕНКИ
+
     // Получить критерии группы
     async getCriteria(groupId) {
         return await request(`/groups/${groupId}/criteria`, 'GET');
     },
 
-    // ========== Работы / Проекты ==========
+    // Создать критерий (только создатель группы)
+    async createCriterion(groupId, data) {
+        // data: { name: string, description?: string }
+        return await request(`/groups/${groupId}/criteria`, 'POST', data);
+    },
+
+    // Обновить критерий
+    async updateCriterion(groupId, criterionId, data) {
+        return await request(`/groups/${groupId}/criteria/${criterionId}`, 'PUT', data);
+    },
+
+    // Удалить критерий
+    async deleteCriterion(groupId, criterionId) {
+        return await request(`/groups/${groupId}/criteria/${criterionId}`, 'DELETE');
+    },
+
+    //  РАБОТЫ / ПРОЕКТЫ (SUBMISSIONS)
+
+    // ⚠️ GET /groups/{group_id}/submissions отсутствует на бэкенде!
+    // Нужен для страницы review.html (список проектов группы)
+    async getGroupSubmissions(groupId) {
+        // ЗАГЛУШКА: заменить на реальный эндпоинт когда появится
+        // return await request(`/groups/${groupId}/submissions`, 'GET');
+        throw new Error('Эндпоинт GET /groups/{group_id}/submissions не реализован на бэкенде');
+    },
 
     // Отправить проект на проверку (студент)
     async submitWork(link, groupId) {
@@ -148,8 +186,12 @@ export const groupsAPI = {
     },
 
     // Оценить работу (эксперт)
+    // reviewData: { comment?: string, grades: [{ criterion_id: number, score: number }] }
     async reviewWork(submissionId, comment, grades) {
-        return await request(`/groups/submissions/${submissionId}/review`, 'POST', { comment, grades });
+        return await request(`/groups/submissions/${submissionId}/review`, 'POST', {
+            comment,
+            grades
+        });
     },
 
     // Обновить ссылку на проект (студент)
