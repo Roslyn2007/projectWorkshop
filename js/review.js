@@ -28,7 +28,7 @@ async function loadGroupInfo() {
   }
 }
 
-// ── Мок-проекты (заменить на реальный API когда будет готов) ──
+// ── Мок-проекты (fallback если API недоступен) ──
 function generateMockProjects() {
   return [
     { id: 1, name: 'Проект «Альфа»',   author: 'Иванов И.И.',   status: 'reviewing', date: '2026-05-10', deadline: '2026-05-15', totalCriteria: 5, scoredCriteria: 2 },
@@ -139,8 +139,23 @@ async function init() {
   await loadCurrentUser();
   await loadGroupInfo();
 
-  // TODO: заменить на реальный вызов groupsAPI.getGroupSubmissions(currentGroupId)
-  projects = generateMockProjects();
+  try {
+    // Пробуем загрузить реальные работы проверяющего
+    const reviews = await groupsAPI.getMyReviews();
+    projects = reviews.map(r => ({
+      id: r.submission_id,
+      name: `Проект #${r.submission_id}`,
+      author: `Студент #${r.student_id}`, // бэкенд не возвращает имя студента
+      status: r.status === 'graded' ? 'archive' : 'reviewing',
+      date: new Date().toISOString(), // бэкенд не возвращает дату
+      deadline: '—',
+      totalCriteria: 5, // заглушка, нужен отдельный запрос критериев
+      scoredCriteria: r.status === 'graded' ? 5 : 0
+    }));
+  } catch (error) {
+    console.warn('Не удалось загрузить работы с бэкенда, используем моки:', error.message);
+    projects = generateMockProjects();
+  }
 
   setupFilters();
   setupSort();

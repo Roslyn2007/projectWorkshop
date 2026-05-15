@@ -34,11 +34,11 @@ async function request(endpoint, method = 'GET', body = null, needsAuth = true) 
 
         // Если 401 – неавторизован, очищаем токен и выбрасываем ошибку
         if (response.status === 401) {
-          setAuthToken('');
-          if (typeof window !== 'undefined' && !window.location.pathname.includes('/index.html')) {
-            window.location.href = '/index.html';
-          }
-          throw new Error('Сессия истекла. Пожалуйста, войдите снова.');
+            setAuthToken('');
+            if (typeof window !== 'undefined' && !window.location.pathname.includes('/index.html')) {
+                window.location.href = '/index.html';
+            }
+            throw new Error('Сессия истекла. Пожалуйста, войдите снова.');
         }
 
         const data = await response.json();
@@ -70,6 +70,7 @@ export const authAPI = {
         setAuthToken('');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
+        localStorage.removeItem('feedback_user_profile');
     },
 
     getToken() {
@@ -82,26 +83,23 @@ export const authAPI = {
 };
 
 export const usersAPI = {
-    // ⚠️ GET /users/me отсутствует на бэкенде!
-    // Если добавят — раскомментируйте:
-    // async getMe() {
-    //     return await request('/users/me', 'GET');
-    // },
-
-    // Временно: декодируем токен локально (небезопасно для production)
+    // Используем userStore + fallback на токен
     async getMe() {
+        // 1. Пробуем взять из хранилища (сохраняется при регистрации)
+        const stored = loadFromStorage();
+        if (stored) return stored;
+
+        // 2. Fallback — декодируем токен
         try {
             const token = authToken.split('.')[1];
             const payload = JSON.parse(atob(token));
-            // Пытаемся получить данные из токена или возвращаем заглушку
             return {
                 id: payload.user_id,
                 email: payload.sub || 'user@example.com',
-                name: payload.name || 'Пользователь',
-                surname: payload.surname || ''
+                name: 'Пользователь',
+                surname: ''
             };
         } catch {
-            // Fallback: пробуем загрузить через другой эндпоинт
             throw new Error('Не удалось получить данные пользователя');
         }
     },
@@ -116,6 +114,31 @@ export const usersAPI = {
     }
 };
 
+// === UserStore helpers (inline, чтобы не зависеть от отдельного импорта) ===
+function loadFromStorage() {
+    try {
+        const raw = localStorage.getItem('feedback_user_profile');
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+export function saveProfileToStorage(profile) {
+    if (!profile) {
+        localStorage.removeItem('feedback_user_profile');
+        return;
+    }
+    localStorage.setItem('feedback_user_profile', JSON.stringify({
+        id: profile.id,
+        name: profile.name,
+        surname: profile.surname,
+        patronymic: profile.patronymic,
+        email: profile.email,
+        updatedAt: Date.now()
+    }));
+}
+
 export const groupsAPI = {
     // Получить все группы текущего пользователя
     async getMyGroups() {
@@ -123,8 +146,12 @@ export const groupsAPI = {
     },
 
     // Создать новую группу
-    async createGroup(name) {
-        return await request('/groups', 'POST', { name });
+    async createGroup(name, groupMode = 'classic', countOfInspectors = 1) {
+        return await request('/groups', 'POST', { 
+            name, 
+            group_mode: groupMode, 
+            count_of_inspectors: countOfInspectors 
+        });
     },
 
     // Присоединиться по токену (код приглашения)
@@ -167,11 +194,15 @@ export const groupsAPI = {
 
     //  РАБОТЫ / ПРОЕКТЫ (SUBMISSIONS)
 
+    // Получить работы, назначенные текущему проверяющему
+    async getMyReviews() {
+        return await request('/groups/my-reviews', 'GET');
+    },
+
     // ⚠️ GET /groups/{group_id}/submissions отсутствует на бэкенде!
-    // Нужен для страницы review.html (список проектов группы)
+    // Нужен для страницы review.html (список проектов группы для организатора)
     async getGroupSubmissions(groupId) {
         // ЗАГЛУШКА: заменить на реальный эндпоинт когда появится
-        // return await request(`/groups/${groupId}/submissions`, 'GET');
         throw new Error('Эндпоинт GET /groups/{group_id}/submissions не реализован на бэкенде');
     },
 
@@ -200,6 +231,7 @@ export const groupsAPI = {
     },
 
     // Обновить комментарий проверяющего (эксперт)
+    // ⚠️ Бэкенд использует submission.reviewer_id, которого нет в модели — ручка может не работать
     async updateSubmissionComment(submissionId, comment) {
         return await request(`/groups/submissions/${submissionId}/comment`, 'PUT', { comment });
     }

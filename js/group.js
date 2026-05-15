@@ -227,11 +227,17 @@ if (createGroupBtn) {
     const name = nameInput?.value.trim();
     if (!name) { showToast('Введите название группы', true); return; }
 
+    // Получаем выбранный режим
+    const activeModeBtn = document.querySelector('.mode-btn.is-active');
+    const modeMap = { expert: 'classic', peer: 'p2p', contest: 'classic' };
+    const groupMode = modeMap[activeModeBtn?.dataset.mode] || 'classic';
+    const countOfInspectors = 1; // Заглушка, в UI нет поля
+
     createGroupBtn.disabled = true;
     createGroupBtn.textContent = 'Создание...';
 
     try {
-      const newGroup = await groupsAPI.createGroup(name);
+      const newGroup = await groupsAPI.createGroup(name, groupMode, countOfInspectors);
 
       showToast(`Группа "${name}" создана!`);
       if (nameInput) nameInput.value = '';
@@ -239,13 +245,15 @@ if (createGroupBtn) {
       const inviteBlock = document.getElementById('inviteLinksBlock');
       if (inviteBlock) inviteBlock.classList.remove('hidden');
 
+      // Формируем полные инвайт-ссылки
+      const baseUrl = window.location.origin;
       const studentField = document.getElementById('studentInviteField');
       const expertField = document.getElementById('expertInviteField');
       if (studentField && newGroup.student_invite_token) {
-        studentField.value = newGroup.student_invite_token;
+        studentField.value = `${baseUrl}/group.html?join=${newGroup.student_invite_token}`;
       }
       if (expertField && newGroup.reviewer_invite_token) {
-        expertField.value = newGroup.reviewer_invite_token;
+        expertField.value = `${baseUrl}/group.html?join=${newGroup.reviewer_invite_token}`;
       }
 
       await loadGroups();
@@ -268,8 +276,9 @@ if (addExpertBtn) {
 
     if (linkBlock) linkBlock.classList.remove('hidden');
 
+    const baseUrl = window.location.origin;
     if (group && group.reviewer_invite_token && linkField) {
-      linkField.value = group.reviewer_invite_token;
+      linkField.value = `${baseUrl}/group.html?join=${group.reviewer_invite_token}`;
       showToast('Ссылка для приглашения эксперта готова');
     } else {
       showToast('Ссылка недоступна', true);
@@ -287,8 +296,9 @@ if (addStudentBtn) {
 
     if (linkBlock) linkBlock.classList.remove('hidden');
 
+    const baseUrl = window.location.origin;
     if (group && group.student_invite_token && linkField) {
-      linkField.value = group.student_invite_token;
+      linkField.value = `${baseUrl}/group.html?join=${group.student_invite_token}`;
       showToast('Ссылка для приглашения студента готова');
     } else {
       showToast('Ссылка недоступна', true);
@@ -387,9 +397,27 @@ if (backBtn) {
   };
 }
 
+// Обработка join-токена из URL (приглашение по ссылке)
+async function handleInviteToken() {
+  const params = new URLSearchParams(window.location.search);
+  const joinToken = params.get('join');
+  if (!joinToken) return;
+
+  try {
+    const result = await groupsAPI.joinGroupByToken(joinToken);
+    showToast(result.message || 'Вы присоединились к группе');
+    // Убираем токен из URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+    await loadGroups();
+  } catch (error) {
+    showToast('Ошибка присоединения: ' + error.message, true);
+  }
+}
+
 async function init() {
   await loadCurrentUser();
   await loadGroups();
+  await handleInviteToken();
 
   // ── Переключение режимов ──
   const modeSelector = document.getElementById('modeSelector');

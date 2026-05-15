@@ -14,15 +14,24 @@ async function loadCurrentUser() {
     const displayName = (user.name && user.surname)
       ? `${user.name} ${user.surname}`
       : (user.name || user.email || 'Пользователь');
-    document.getElementById('headerUserName').innerText = displayName;
+    
+    const headerEl = document.getElementById('headerUserName');
+    if (headerEl) headerEl.innerText = displayName;
 
-    document.getElementById('profileFirstName').value = user.name || '';
-    document.getElementById('profileLastName').value = user.surname || '';
-    document.getElementById('profileEmail').value = user.email || '';
-    const patronymicField = document.getElementById('profilePatronymic');
-    if (patronymicField) patronymicField.value = user.patronymic || '';
+    const firstNameEl = document.getElementById('profileFirstName');
+    if (firstNameEl) firstNameEl.value = user.name || '';
+
+    const lastNameEl = document.getElementById('profileLastName');
+    if (lastNameEl) lastNameEl.value = user.surname || '';
+
+    const emailEl = document.getElementById('profileEmail');
+    if (emailEl) emailEl.value = user.email || '';
+
+    const patronymicEl = document.getElementById('profilePatronymic');
+    if (patronymicEl) patronymicEl.value = user.patronymic || '';
   } catch (error) {
-    document.getElementById('headerUserName').innerText = 'Гость';
+    const headerEl = document.getElementById('headerUserName');
+    if (headerEl) headerEl.innerText = 'Гость';
     if (error.message && error.message.includes('Сессия истекла')) {
       return;
     }
@@ -53,46 +62,60 @@ function switchTab(tabName) {
   }
 }
 
+// Привязка табов
 document.querySelectorAll('.settings-tab').forEach(tab => {
   tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
 
-document.getElementById('saveProfileBtn').addEventListener('click', async () => {
-  const name = document.getElementById('profileFirstName').value.trim();
-  const surname = document.getElementById('profileLastName').value.trim();
-  const email = document.getElementById('profileEmail').value.trim();
-  const patronymic = document.getElementById('profilePatronymic')?.value.trim();
+// Сохранение профиля
+const saveProfileBtn = document.getElementById('saveProfileBtn');
+if (saveProfileBtn) {
+  saveProfileBtn.addEventListener('click', async () => {
+    const nameEl = document.getElementById('profileFirstName');
+    const surnameEl = document.getElementById('profileLastName');
+    const emailEl = document.getElementById('profileEmail');
+    const patronymicEl = document.getElementById('profilePatronymic');
 
-  if (!name || !surname || !email) {
-    showToast('Заполните обязательные поля (имя, фамилия, email)', true);
-    return;
-  }
+    const name = nameEl?.value.trim() || '';
+    const surname = surnameEl?.value.trim() || '';
+    const email = emailEl?.value.trim() || '';
+    const patronymic = patronymicEl?.value.trim() || '';
 
-  try {
-    await usersAPI.updateProfile({ name, surname, patronymic, email });
-    showToast('Профиль обновлён');
-    await loadCurrentUser();
-  } catch (error) {
-    showToast('Ошибка сохранения: ' + error.message, true);
-  }
-});
+    if (!name || !surname || !email) {
+      showToast('Заполните обязательные поля (имя, фамилия, email)', true);
+      return;
+    }
 
-document.getElementById('changePasswordBtn').addEventListener('click', () => {
-  const current = document.getElementById('currentPassword').value;
-  const newPass = document.getElementById('newPassword').value;
-  const confirm = document.getElementById('confirmPassword').value;
+    try {
+      await usersAPI.updateProfile({ name, surname, patronymic, email });
+      showToast('Профиль обновлён');
+      await loadCurrentUser();
+    } catch (error) {
+      showToast('Ошибка сохранения: ' + error.message, true);
+    }
+  });
+}
 
-  if (!current || !newPass || !confirm) {
-    showToast('Заполните все поля', true);
-    return;
-  }
-  if (newPass !== confirm) {
-    showToast('Пароли не совпадают', true);
-    return;
-  }
+// Смена пароля (заглушка)
+const changePasswordBtn = document.getElementById('changePasswordBtn');
+if (changePasswordBtn) {
+  changePasswordBtn.addEventListener('click', () => {
+    const current = document.getElementById('currentPassword')?.value || '';
+    const newPass = document.getElementById('newPassword')?.value || '';
+    const confirm = document.getElementById('confirmPassword')?.value || '';
 
-  showToast('Функция смены пароля временно недоступна', true);
-});
+    if (!current || !newPass || !confirm) {
+      showToast('Заполните все поля', true);
+      return;
+    }
+    if (newPass !== confirm) {
+      showToast('Пароли не совпадают', true);
+      return;
+    }
+
+    showToast('Функция смены пароля временно недоступна', true);
+  });
+}
 
 async function init() {
   await loadCurrentUser();

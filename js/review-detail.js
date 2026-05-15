@@ -15,6 +15,18 @@ import {
 let currentGroupId = null;
 let currentProjectId = null;
 
+// Получаем user_id из токена для сопоставления отзывов
+function getUserIdFromToken() {
+  const token = localStorage.getItem('access_token');
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.user_id || null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadProject() {
   const params = new URLSearchParams(window.location.search);
   currentGroupId = params.get('group');
@@ -42,13 +54,18 @@ async function loadProject() {
       linkEl.href = submission.link;
       linkEl.innerText = submission.link;
 
-      if (submission.reviewer_comment) {
-        document.getElementById('feedbackText').value = submission.reviewer_comment;
+      // Бэкенд возвращает reviews[], а не reviewer_comment на верхнем уровне
+      const currentUserId = getUserIdFromToken();
+      const myReview = submission.reviews?.find(r => r.reviewer_id === currentUserId);
+      
+      if (myReview?.comment) {
+        document.getElementById('feedbackText').value = myReview.comment;
       }
 
-      if (submission.grades && submission.grades.length > 0) {
-        submission.grades.forEach(g => {
-          const c = criteria.find(x => x.name === g.criterion_name);
+      // Если уже есть оценки — подгружаем их в criteria
+      if (myReview?.grades?.length > 0) {
+        myReview.grades.forEach(g => {
+          const c = criteria.find(x => x.id === g.criterion_id || x.name === g.criterion_name);
           if (c) c.score = g.score;
         });
       }

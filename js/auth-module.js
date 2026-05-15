@@ -1,4 +1,4 @@
-import { authAPI, usersAPI } from './api.js';
+import { authAPI, usersAPI, saveProfileToStorage } from './api.js';
 
 let lastFocusedElement = null;
 
@@ -256,8 +256,9 @@ export function initAuthModal() {
                 showAuthError('Введите корректный email');
                 return;
             }
-            if (!password || password.length < 3) {
-                showAuthError('Пароль должен быть не менее 3 символов');
+            // Синхронизировано с бэкендом: min_length=8
+            if (!password || password.length < 8) {
+                showAuthError('Пароль должен быть не менее 8 символов');
                 return;
             }
             if (password !== confirm) {
@@ -269,13 +270,23 @@ export function initAuthModal() {
                 return;
             }
             try {
-                await authAPI.register({ 
+                const result = await authAPI.register({ 
                     email, 
                     password, 
                     name: firstName, 
                     surname: lastName,
                     patronymic: patronymic
                 });
+                
+                // Сохраняем профиль в хранилище (бэкенд не имеет GET /users/me)
+                saveProfileToStorage({
+                    id: result.id,
+                    name: firstName,
+                    surname: lastName,
+                    patronymic: patronymic,
+                    email: email
+                });
+                
                 showAuthError('Регистрация успешна! Теперь войдите.', true);
                 setTimeout(() => switchAuthTab('login'), 1500);
                 document.getElementById('reg-first-name').value = '';
