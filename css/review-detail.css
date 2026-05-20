@@ -67,3 +67,15 @@
 .criteria-dropdown {
   position: relative;
 }
+
+/* Contest voting buttons */
+.contest-score {
+  transition: all 0.2s ease;
+}
+
+.contest-score.active,
+.contest-score.bg-purple-500 {
+  background-color: #7c3aed;
+  border-color: #7c3aed;
+  color: #ffffff;
+}

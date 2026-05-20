@@ -191,14 +191,13 @@ export function initAuthModal() {
     if (tabLogin) tabLogin.addEventListener('click', () => switchAuthTab('login'));
     if (tabRegister) tabRegister.addEventListener('click', () => switchAuthTab('register'));
 
-    // Привязка к кнопке входа/регистрации
-    const loginBtn = document.querySelector('.login-btn-expert');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', (e) => {
+    // Привязка ко всем кнопкам входа/регистрации на странице
+    document.querySelectorAll('.login-btn-expert').forEach(btn => {
+        btn.addEventListener('click', (e) => {
             e.preventDefault();
             openAuthModal();
         });
-    }
+    });
 
     // Обработка формы входа
     const loginForm = document.getElementById('login-form');
@@ -218,6 +217,15 @@ export function initAuthModal() {
             }
             try {
                 await authAPI.login(email, password);
+
+                // Проверяем, был ли pending join-токен
+                const pendingJoin = localStorage.getItem('pending_join_token');
+                if (pendingJoin) {
+                    localStorage.removeItem('pending_join_token');
+                    window.location.href = `group.html?join=${pendingJoin}`;
+                    return;
+                }
+
                 window.location.href = 'group.html';
             } catch (err) {
                 showAuthError(err.message);
@@ -277,7 +285,7 @@ export function initAuthModal() {
                     surname: lastName,
                     patronymic: patronymic
                 });
-                
+
                 // Сохраняем профиль в хранилище (бэкенд не имеет GET /users/me)
                 saveProfileToStorage({
                     id: result.id,
@@ -286,7 +294,13 @@ export function initAuthModal() {
                     patronymic: patronymic,
                     email: email
                 });
-                
+
+                // Сохраняем токен из ответа регистрации
+                if (result.access_token) {
+                    authAPI.logout(); // очистим старый
+                    localStorage.setItem('access_token', result.access_token);
+                }
+
                 showAuthError('Регистрация успешна! Теперь войдите.', true);
                 setTimeout(() => switchAuthTab('login'), 1500);
                 document.getElementById('reg-first-name').value = '';

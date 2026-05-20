@@ -1,7 +1,5 @@
-// Единый API-клиент для работы с бэкендом FastAPI
 const API_BASE = 'http://localhost:8000';
 
-// Хранение токена
 let authToken = localStorage.getItem('access_token') || '';
 
 function setAuthToken(token) {
@@ -32,7 +30,6 @@ async function request(endpoint, method = 'GET', body = null, needsAuth = true) 
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, options);
 
-        // Если 401 – неавторизован, очищаем токен и выбрасываем ошибку
         if (response.status === 401) {
             setAuthToken('');
             if (typeof window !== 'undefined' && !window.location.pathname.includes('/index.html')) {
@@ -62,7 +59,6 @@ export const authAPI = {
     },
 
     async register(userData) {
-        // userData: { email, password, name, surname, patronymic }
         return await request('/users/register', 'POST', userData, false);
     },
 
@@ -83,30 +79,35 @@ export const authAPI = {
 };
 
 export const usersAPI = {
-    // Используем userStore + fallback на токен
     async getMe() {
-        // 1. Пробуем взять из хранилища (сохраняется при регистрации)
         const stored = loadFromStorage();
         if (stored) return stored;
 
-        // 2. Fallback — декодируем токен
         try {
-            const token = authToken.split('.')[1];
-            const payload = JSON.parse(atob(token));
-            return {
-                id: payload.user_id,
-                email: payload.sub || 'user@example.com',
-                name: 'Пользователь',
-                surname: ''
-            };
-        } catch {
-            throw new Error('Не удалось получить данные пользователя');
+            const user = await request('/users/me', 'GET');
+            saveProfileToStorage(user);
+            return user;
+        } catch (error) {
+            console.warn('Не удалось загрузить профиль с сервера:', error.message);
+            try {
+                const token = authToken.split('.')[1];
+                const payload = JSON.parse(atob(token));
+                return {
+                    id: payload.user_id,
+                    email: payload.sub || 'user@example.com',
+                    name: 'Пользователь',
+                    surname: ''
+                };
+            } catch {
+                throw new Error('Не удалось получить данные пользователя');
+            }
         }
     },
 
     async updateProfile(data) {
-        // data: { email?, name?, surname?, patronymic? }
-        return await request('/users/me', 'PUT', data);
+        const result = await request('/users/me', 'PUT', data);
+        saveProfileToStorage(result);
+        return result;
     },
 
     async changePassword(current_password, new_password) {
@@ -114,7 +115,6 @@ export const usersAPI = {
     }
 };
 
-// === UserStore helpers (inline, чтобы не зависеть от отдельного импорта) ===
 function loadFromStorage() {
     try {
         const raw = localStorage.getItem('feedback_user_profile');
@@ -140,12 +140,10 @@ export function saveProfileToStorage(profile) {
 }
 
 export const groupsAPI = {
-    // Получить все группы текущего пользователя
     async getMyGroups() {
         return await request('/groups/my', 'GET');
     },
 
-    // Создать новую группу
     async createGroup(name, groupMode = 'classic', countOfInspectors = 1) {
         return await request('/groups', 'POST', { 
             name, 
@@ -154,70 +152,59 @@ export const groupsAPI = {
         });
     },
 
-    // Присоединиться по токену (код приглашения)
     async joinGroupByToken(token) {
         return await request(`/groups/join/${token}`, 'GET');
     },
 
-    // Получить список участников группы
     async getMembers(groupId) {
         return await request(`/groups/${groupId}/members`, 'GET');
     },
 
-    // Удалить участника из группы (только создатель)
     async removeMember(groupId, userId) {
         return await request(`/groups/${groupId}/members/${userId}`, 'DELETE');
     },
 
-    //  КРИТЕРИИ ОЦЕНКИ
-
-    // Получить критерии группы
     async getCriteria(groupId) {
         return await request(`/groups/${groupId}/criteria`, 'GET');
     },
 
-    // Создать критерий (только создатель группы)
     async createCriterion(groupId, data) {
-        // data: { name: string, description?: string }
         return await request(`/groups/${groupId}/criteria`, 'POST', data);
     },
 
-    // Обновить критерий
     async updateCriterion(groupId, criterionId, data) {
         return await request(`/groups/${groupId}/criteria/${criterionId}`, 'PUT', data);
     },
 
-    // Удалить критерий
     async deleteCriterion(groupId, criterionId) {
         return await request(`/groups/${groupId}/criteria/${criterionId}`, 'DELETE');
     },
 
-    //  РАБОТЫ / ПРОЕКТЫ (SUBMISSIONS)
-
-    // Получить работы, назначенные текущему проверяющему
     async getMyReviews() {
         return await request('/groups/my-reviews', 'GET');
     },
 
-    // ⚠️ GET /groups/{group_id}/submissions отсутствует на бэкенде!
-    // Нужен для страницы review.html (список проектов группы для организатора)
     async getGroupSubmissions(groupId) {
-        // ЗАГЛУШКА: заменить на реальный эндпоинт когда появится
-        throw new Error('Эндпоинт GET /groups/{group_id}/submissions не реализован на бэкенде');
+        try {
+            const allReviews = await request('/groups/my-reviews', 'GET');
+            if (Array.isArray(allReviews)) {
+                return allReviews.filter(r => r.group_id == groupId);
+            }
+            return [];
+        } catch (error) {
+            console.warn('Не удалось загрузить работы группы:', error.message);
+            return [];
+        }
     },
 
-    // Отправить проект на проверку (студент)
     async submitWork(link, groupId) {
         return await request('/groups/submit', 'POST', { link, group_id: groupId });
     },
 
-    // Получить детали работы с оценками
     async getSubmission(submissionId) {
         return await request(`/groups/submissions/${submissionId}`, 'GET');
     },
 
-    // Оценить работу (эксперт)
-    // reviewData: { comment?: string, grades: [{ criterion_id: number, score: number }] }
     async reviewWork(submissionId, comment, grades) {
         return await request(`/groups/submissions/${submissionId}/review`, 'POST', {
             comment,
@@ -225,13 +212,10 @@ export const groupsAPI = {
         });
     },
 
-    // Обновить ссылку на проект (студент)
     async updateSubmissionLink(submissionId, link) {
         return await request(`/groups/submissions/${submissionId}/link`, 'PUT', { link });
     },
 
-    // Обновить комментарий проверяющего (эксперт)
-    // ⚠️ Бэкенд использует submission.reviewer_id, которого нет в модели — ручка может не работать
     async updateSubmissionComment(submissionId, comment) {
         return await request(`/groups/submissions/${submissionId}/comment`, 'PUT', { comment });
     }

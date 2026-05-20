@@ -22,10 +22,8 @@
   overflow: hidden;
 }
 
-#student-section {
-  transform: translateX(-150px);
-}
-
+/* Hero section cards - centered, no offset */
+#student-section,
 #expert-section {
-  transform: translateX(150px);
+  transform: none;
 }

@@ -45,11 +45,7 @@ export async function loadGroupCriteria(groupId) {
     }));
   } catch (error) {
     console.warn('Не удалось загрузить критерии с бэкенда:', error.message);
-    criteria = [
-      { id: 1, name: 'Критерий 1', score: null, max_score: 10 },
-      { id: 2, name: 'Критерий 2', score: null, max_score: 10 },
-      { id: 3, name: 'Критерий 3', score: null, max_score: 10 }
-    ];
+    criteria = [];
   }
 }
 
@@ -67,7 +63,7 @@ export function renderCriteriaList(containerId) {
   if (!container) return;
 
   if (criteria.length === 0) {
-    container.innerHTML = '<p class="text-sm text-gray-400">Нет критериев оценки. Добавьте первый критерий выше.</p>';
+    container.innerHTML = '<p class="text-sm text-gray-400">Нет критериев оценки. Организатор группы ещё не настроил критерии.</p>';
     return;
   }
 
@@ -86,7 +82,8 @@ export function renderCriteriaList(containerId) {
 
     return `
       <div class="criteria-item" data-criteria-id="${c.id}">
-        <h3 class="text-base font-medium text-gray-800 mb-3">${escapeHtml(c.name)}</h3>
+        <h3 class="text-base font-medium text-gray-800 mb-1">${escapeHtml(c.name)}</h3>
+        ${c.description ? `<p class="text-xs text-gray-500 mb-3">${escapeHtml(c.description)}</p>` : ''}
         <div class="flex items-center">
           ${scoresHtml}
         </div>
@@ -127,71 +124,9 @@ export function updateTotalScore(totalId = 'totalScore', maxTotalId = 'maxTotalS
   maxEl.innerText = max;
 }
 
-//  УПРАВЛЕНИЕ КРИТЕРИЯМИ (добавление / удаление)
-export function updateRemoveDropdown(dropdownId) {
-  const dropdown = document.getElementById(dropdownId);
-  if (!dropdown) return;
-
-  if (criteria.length === 0) {
-    dropdown.innerHTML = '<div class="px-3 py-2 text-sm text-gray-400">Нет критериев</div>';
-    return;
-  }
-
-  dropdown.innerHTML = criteria.map(c => `
-    <div class="remove-criteria-option px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 cursor-pointer border-b border-orange-100 last:border-0"
-         data-criteria-id="${c.id}">
-      ${escapeHtml(c.name)}
-    </div>
-  `).join('');
-}
-
-export async function handleAddCriterion(groupId, name, onSuccess) {
-  if (!name) {
-    showToast('Введите название критерия', true);
-    return false;
-  }
-
-  try {
-    const created = await groupsAPI.createCriterion(groupId, { name });
-    criteria.push({
-      id: created.id,
-      name: created.name,
-      description: created.description,
-      score: null,
-      max_score: created.max_score || 10
-    });
-    showToast('Критерий добавлен');
-  } catch (error) {
-    showToast('Ошибка добавления: ' + error.message, true);
-    const newId = criteria.length > 0 ? Math.max(...criteria.map(c => c.id)) + 1 : 1;
-    criteria.push({ id: newId, name, score: null, max_score: 10 });
-  }
-
-  if (onSuccess) onSuccess();
-  return true;
-}
-
-export async function handleDeleteCriterion(groupId, criteriaId, onSuccess) {
-  const c = criteria.find(x => x.id === criteriaId);
-  if (!c) return false;
-  if (!confirm(`Удалить критерий "${c.name}"?`)) return false;
-
-  try {
-    await groupsAPI.deleteCriterion(groupId, criteriaId);
-    criteria = criteria.filter(x => x.id !== criteriaId);
-    showToast('Критерий удалён');
-  } catch (error) {
-    showToast('Ошибка удаления: ' + error.message, true);
-    criteria = criteria.filter(x => x.id !== criteriaId);
-  }
-
-  if (onSuccess) onSuccess();
-  return true;
-}
-
 export async function handleFinishReview(projectId, feedback, groupId, onSuccess) {
   if (criteria.length === 0) {
-    showToast('Добавьте хотя бы один критерий оценки', true);
+    showToast('Критерии оценки не настроены организатором', true);
     return false;
   }
 
@@ -217,81 +152,16 @@ export async function handleFinishReview(projectId, feedback, groupId, onSuccess
   }
 }
 
+// Упрощённая инициализация — только оценка, без управления критериями
 export function initReviewPage(options) {
   const {
     groupId,
     projectId,
     containerId,
-    addBtnId,
-    inputId,
-    removeBtnId,
-    dropdownId,
     finishBtnId,
     feedbackId,
     onFinish
   } = options;
-
-  // ── Добавление критерия ──
-  const addBtn = document.getElementById(addBtnId);
-  const input = document.getElementById(inputId);
-  if (addBtn && input) {
-    addBtn.addEventListener('click', async () => {
-      addBtn.disabled = true;
-      addBtn.innerHTML = '<span class="animate-spin inline-block mr-1">⟳</span> Добавление...';
-
-      await handleAddCriterion(groupId, input.value.trim(), () => {
-        input.value = '';
-        renderCriteriaList(containerId);
-        updateTotalScore();
-        updateRemoveDropdown(dropdownId);
-      });
-
-      addBtn.disabled = false;
-      addBtn.innerHTML = `
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Добавить критерий оценки
-      `;
-    });
-
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addBtn.click();
-      }
-    });
-  }
-
-  // ── Удаление критерия (выпадашка) ──
-  const removeBtn = document.getElementById(removeBtnId);
-  const dropdown = document.getElementById(dropdownId);
-  if (removeBtn && dropdown) {
-    removeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dropdown.classList.toggle('hidden');
-    });
-    document.addEventListener('click', (e) => {
-      if (!dropdown.contains(e.target) && e.target !== removeBtn) {
-        dropdown.classList.add('hidden');
-      }
-    });
-  }
-
-  // Делегирование клика по опциям удаления
-  if (dropdown) {
-    dropdown.addEventListener('click', async (e) => {
-      const opt = e.target.closest('.remove-criteria-option');
-      if (!opt) return;
-      e.stopPropagation();
-
-      const id = parseInt(opt.dataset.criteriaId);
-      await handleDeleteCriterion(groupId, id, () => {
-        renderCriteriaList(containerId);
-        updateTotalScore();
-        updateRemoveDropdown(dropdownId);
-      });
-      dropdown.classList.add('hidden');
-    });
-  }
 
   // ── Завершение оценки ──
   const finishBtn = document.getElementById(finishBtnId);
